@@ -38,4 +38,5 @@ var (
 	errSendBlockChain   = errors.New("errSendBlockChain")
 	errBuildBlockFailed = errors.New("errBuildBlockFailed")
 	errLtBlockNotExist  = errors.New("errLtBlockNotExist")
+	errSendMsgConsensus = errors.New("errSendMsgConsensus")
 )

@@ -25,7 +25,7 @@ func (mgr *Manager) handleSysEvent() {
 
 		switch msg.Ty {
 
-		case types.EventTxBroadcast, types.EventBlockBroadcast: //广播
+		case types.EventTxBroadcast, types.EventBlockBroadcast, types.EventConsensusMsg: //广播
 			mgr.pub2All(msg)
 		case types.EventFetchBlocks, types.EventGetMempool, types.EventFetchBlockHeaders:
 			mgr.pub2P2P(msg, mgr.p2pCfg.Types[0])
@@ -73,6 +73,14 @@ func (mgr *Manager) handleP2PSub() {
 
 // PubBroadCast 兼容多种类型p2p广播消息, 避免重复接交易或者区块
 func (mgr *Manager) PubBroadCast(hash string, data interface{}, eventTy int) error {
+	//共识消息不需要过滤
+	if eventTy == types.EventConsensusMsg {
+		err := mgr.Client.Send(mgr.Client.NewMessage("consensus", types.EventConsensusMsg, data), false)
+		if err != nil {
+			log.Error("PubBroadCast", "eventTy", eventTy, "sendMsgErr", err)
+		}
+		return err
+	}
 
 	exist, _ := mgr.broadcastFilter.ContainsOrAdd(hash, true)
 	// eventTy, 交易=1, 区块=54

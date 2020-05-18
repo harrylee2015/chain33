@@ -157,6 +157,8 @@ const (
 	EventGetParaTxByTitleAndHeight = 310
 	//比较当前区块和新广播的区块最优区块
 	EventCmpBestBlock = 311
+	//p2p共识消息
+	EventConsensusMsg = 312
 )
 
 var eventName = map[int]string{

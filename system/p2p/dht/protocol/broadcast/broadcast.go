@@ -63,7 +63,7 @@ func (protocol *broadCastProtocol) InitProtocol(env *prototypes.P2PEnv) {
 	//注册事件处理函数
 	prototypes.RegisterEventHandler(types.EventTxBroadcast, protocol.handleEvent)
 	prototypes.RegisterEventHandler(types.EventBlockBroadcast, protocol.handleEvent)
-
+	prototypes.RegisterEventHandler(types.EventConsensusMsg, protocol.handleEvent)
 	//ttl至少设为2
 	if subCfg.LightTxTTL <= 1 {
 		subCfg.LightTxTTL = defaultLtTxBroadCastTTL
@@ -134,10 +134,17 @@ func (protocol *broadCastProtocol) handleEvent(msg *queue.Message) {
 	} else if block, ok := msg.GetData().(*types.Block); ok {
 		protocol.blockFilter.Add(hex.EncodeToString(block.Hash(protocol.GetChainCfg())), true)
 		sendData = &types.P2PBlock{Block: block}
+	} else if conMsg, ok := msg.GetData().(*types.ConsensusMsg); ok {
+		if conMsg.ToPeerID != "" {
+			//共识消息需要单播
+			protocol.sendPeer(conMsg.ToPeerID, conMsg, false)
+			return
+		}
+		//探测包需要全网广播
+		sendData = conMsg
 	} else {
 		return
 	}
-
 	protocol.broadcast(sendData)
 }
 
@@ -220,6 +227,9 @@ func (protocol *broadCastProtocol) handleSend(rawData interface{}, pid, peerAddr
 	} else if ping, ok := rawData.(*types.P2PPing); ok {
 		doSend = true
 		sendData.Value = &types.BroadCastData_Ping{Ping: ping}
+	} else if msg, ok := rawData.(*types.ConsensusMsg); ok {
+		doSend = true
+		sendData.Value = &types.BroadCastData_ConMsg{ConMsg: msg}
 	}
 	return
 }
@@ -244,6 +254,8 @@ func (protocol *broadCastProtocol) handleReceive(data *types.BroadCastData, pid 
 		err = protocol.recvQueryData(query, pid, peerAddr)
 	} else if rep := data.GetBlockRep(); rep != nil {
 		err = protocol.recvQueryReply(rep, pid, peerAddr)
+	} else if conMsg := data.GetConMsg(); conMsg != nil {
+		err = protocol.recvConMsg(conMsg, pid, peerAddr)
 	}
 	if err != nil {
 		log.Error("handleReceive", "pid", pid, "addr", peerAddr, "recvData", data.Value, "err", err)
@@ -257,6 +269,10 @@ func (protocol *broadCastProtocol) postBlockChain(blockHash, pid string, block *
 
 func (protocol *broadCastProtocol) postMempool(txHash string, tx *types.Transaction) error {
 	return protocol.P2PManager.PubBroadCast(txHash, tx, types.EventTx)
+}
+
+func (protocol *broadCastProtocol) postConsensus(txHash string, msg *types.ConsensusMsg) error {
+	return protocol.P2PManager.PubBroadCast(txHash, msg, types.EventConsensusMsg)
 }
 
 type sendFilterInfo struct {
