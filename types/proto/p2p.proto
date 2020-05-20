@@ -290,7 +290,7 @@ message BroadCastData {
         LightBlock      ltBlock  = 6;
         P2PQueryData    query    = 7;
         P2PBlockTxReply blockRep = 8;
-        ConsensusMsg    conMsg   = 9;
+        P2PConMsg       conMsg   = 9;
     }
 }
 
@@ -398,4 +398,12 @@ message ConsensusMsg {
     string Name   = 3;
     int32  MsgType   = 4;
     bytes   data   = 5;
+}
+
+/**
+ * p2p 发送共识类消息协议
+ */
+message P2PConMsg {
+    ConsensusMsg conMsg = 1;
+    P2PRoute    route = 2;
 }

@@ -20,12 +20,14 @@ const (
 // P2pCacheTxSize p2pcache size of transaction
 const (
 	//接收的交易哈希过滤缓存设为mempool最大接收交易量
-	txRecvFilterCacheNum    = 10240
-	blockRecvFilterCacheNum = 1024
+	txRecvFilterCacheNum     = 10240
+	blockRecvFilterCacheNum  = 1024
+	conMsgRecvFilterCacheNum = 1024
 	//发送过滤主要用于发送时冗余检测, 发送完即可以被删除, 维护较小缓存数
-	txSendFilterCacheNum    = 500
-	blockSendFilterCacheNum = 50
-	ltBlockCacheNum         = 1000
+	txSendFilterCacheNum     = 500
+	blockSendFilterCacheNum  = 50
+	conMsgSendFilterCacheNum = 500
+	ltBlockCacheNum          = 1000
 )
 
 // 内部自定义错误

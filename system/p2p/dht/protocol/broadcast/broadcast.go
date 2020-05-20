@@ -37,12 +37,14 @@ func init() {
 type broadCastProtocol struct {
 	*prototypes.BaseProtocol
 
-	txFilter        *utils.Filterdata
-	blockFilter     *utils.Filterdata
-	txSendFilter    *utils.Filterdata
-	blockSendFilter *utils.Filterdata
-	ltBlockCache    *utils.SpaceLimitCache
-	p2pCfg          *p2pty.P2PSubConfig
+	txFilter         *utils.Filterdata
+	blockFilter      *utils.Filterdata
+	txSendFilter     *utils.Filterdata
+	blockSendFilter  *utils.Filterdata
+	conMsgFilter     *utils.Filterdata
+	conMsgSendFilter *utils.Filterdata
+	ltBlockCache     *utils.SpaceLimitCache
+	p2pCfg           *p2pty.P2PSubConfig
 }
 
 // InitProtocol init protocol
@@ -53,10 +55,12 @@ func (protocol *broadCastProtocol) InitProtocol(env *prototypes.P2PEnv) {
 	//接收交易和区块过滤缓存, 避免重复提交到mempool或blockchain
 	protocol.txFilter = utils.NewFilter(txRecvFilterCacheNum)
 	protocol.blockFilter = utils.NewFilter(blockRecvFilterCacheNum)
+	protocol.conMsgFilter = utils.NewFilter(conMsgRecvFilterCacheNum)
 
 	//发送交易和区块时过滤缓存, 解决冗余广播发送
 	protocol.txSendFilter = utils.NewFilter(txSendFilterCacheNum)
 	protocol.blockSendFilter = utils.NewFilter(blockSendFilterCacheNum)
+	protocol.conMsgSendFilter = utils.NewFilter(conMsgSendFilterCacheNum)
 
 	// 单独复制一份， 避免data race
 	subCfg := *(env.SubConfig)
@@ -136,12 +140,22 @@ func (protocol *broadCastProtocol) handleEvent(msg *queue.Message) {
 		sendData = &types.P2PBlock{Block: block}
 	} else if conMsg, ok := msg.GetData().(*types.ConsensusMsg); ok {
 		if conMsg.ToPeerID != "" {
-			//共识消息需要单播
-			protocol.sendPeer(conMsg.ToPeerID, conMsg, false)
+			//单纯共识消息需要单播
+			route := &types.P2PRoute{TTL: 0}
+			protocol.sendPeer(conMsg.ToPeerID, &types.P2PConMsg{ConMsg: conMsg, Route: route}, false)
 			return
 		}
 		//探测包需要全网广播
-		sendData = conMsg
+		hash := hex.EncodeToString(types.Encode(conMsg))
+		route := &types.P2PRoute{TTL: 1}
+		//是否已存在记录，不存在表示本节点发起的
+		data, exist := protocol.conMsgFilter.Get(hash)
+		if ttl, ok := data.(*types.P2PRoute); exist && ok {
+			route.TTL = ttl.GetTTL() + 1
+		} else {
+			protocol.conMsgFilter.Add(hash, true)
+		}
+		sendData = &types.P2PConMsg{ConMsg: conMsg, Route: route}
 	} else {
 		return
 	}
@@ -227,8 +241,17 @@ func (protocol *broadCastProtocol) handleSend(rawData interface{}, pid, peerAddr
 	} else if ping, ok := rawData.(*types.P2PPing); ok {
 		doSend = true
 		sendData.Value = &types.BroadCastData_Ping{Ping: ping}
-	} else if msg, ok := rawData.(*types.ConsensusMsg); ok {
-		doSend = true
+	} else if msg, ok := rawData.(*types.P2PConMsg); ok {
+		//嗅探消息要判断节点是否重复发送
+		conMsg := msg.GetConMsg()
+		if conMsg.ToPeerID != "" {
+			doSend = true
+		} else {
+			hash := hex.EncodeToString(types.Encode(msg.GetConMsg()))
+			if !addIgnoreSendPeerAtomic(protocol.conMsgSendFilter, hash, pid) {
+				doSend = true
+			}
+		}
 		sendData.Value = &types.BroadCastData_ConMsg{ConMsg: msg}
 	}
 	return
