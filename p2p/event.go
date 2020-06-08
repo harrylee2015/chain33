@@ -75,7 +75,7 @@ func (mgr *Manager) handleP2PSub() {
 func (mgr *Manager) PubBroadCast(hash string, data interface{}, eventTy int) error {
 	//共识消息不需要过滤
 	if eventTy == types.EventConsensusMsg {
-		err := mgr.Client.Send(mgr.Client.NewMessage("consensus", types.EventConsensusMsg, data), false)
+		err := mgr.Client.Send(mgr.Client.NewMessage("consensus", types.EventConsensusMsg, data), true)
 		if err != nil {
 			log.Error("PubBroadCast", "eventTy", eventTy, "sendMsgErr", err)
 		}
