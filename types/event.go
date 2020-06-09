@@ -75,7 +75,7 @@ const (
 	EventCheckTx                 = 81
 	EventReceiptCheckTx          = 82
 	EventReplyQuery              = 84
-	EventAddBlockSeqCB           = 85
+	EventSubscribePush           = 85
 	EventFetchBlockHeaders       = 86
 	EventAddBlockHeaders         = 87
 	EventReplyWalletStatus       = 89
@@ -116,8 +116,8 @@ const (
 	EventLocalPrefixCount        = 128
 	EventStoreList               = 130
 	EventStoreListReply          = 131
-	EventListBlockSeqCB          = 132
-	EventGetSeqCBLastNum         = 133
+	EventListPushes              = 132
+	EventGetPushLastNum          = 133
 	EventGetBlockBySeq           = 134
 
 	EventLocalBegin    = 135
@@ -156,9 +156,10 @@ const (
 	//通过区块高度列表+title获取平行链交易
 	EventGetParaTxByTitleAndHeight = 310
 	//比较当前区块和新广播的区块最优区块
-	EventCmpBestBlock = 311
+	EventCmpBestBlock       = 311
+	EventReplySubscribePush = 312
 	//p2p共识消息
-	EventConsensusMsg = 312
+	EventConsensusMsg = 313
 )
 
 var eventName = map[int]string{
@@ -229,6 +230,7 @@ var eventName = map[int]string{
 	81:  "EventCheckTx",
 	82:  "EventReceiptCheckTx",
 	84:  "EventReplyQuery",
+	85:  "EventSubscribePush",
 	86:  "EventFetchBlockHeaders",
 	87:  "EventAddBlockHeaders",
 	89:  "EventReplyWalletStatus",
@@ -270,6 +272,8 @@ var eventName = map[int]string{
 	//todo: 这个可能后面会删除
 	EventStoreList:      "EventStoreList",
 	EventStoreListReply: "EventStoreListReply",
+	EventListPushes:     "EventListPushes",
+	EventGetPushLastNum: "EventGetPushLastNum",
 	// Token
 	EventBlockChainQuery: "EventBlockChainQuery",
 	EventConsensusQuery:  "EventConsensusQuery",
@@ -299,4 +303,5 @@ var eventName = map[int]string{
 	EventGetParaTxByTitleAndHeight:  "EventGetParaTxByTitleAndHeight",
 	EventCmpBestBlock:               "EventCmpBestBlock",
 	EventUpgrade:                    "EventUpgrade",
+	EventReplySubscribePush:         "EventReplySubscribePush",
 }
