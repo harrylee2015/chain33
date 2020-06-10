@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/33cn/chain33/common"
-
 	"github.com/33cn/chain33/common/log/log15"
 
 	"github.com/33cn/chain33/common/version"
@@ -70,7 +68,13 @@ func (q *QueueProtocol) send(topic string, ty int64, data interface{}) (*queue.M
 	if err != nil {
 		return &queue.Message{}, err
 	}
-	return client.WaitTimeout(msg, q.option.WaitTimeout)
+	reply, err := client.WaitTimeout(msg, q.option.WaitTimeout)
+	if err != nil {
+		return nil, err
+	}
+	//NOTE：内部错误情况较多，只对正确流程msg回收
+	client.FreeMessage(msg)
+	return reply, nil
 }
 
 func (q *QueueProtocol) notify(topic string, ty int64, data interface{}) (*queue.Message, error) {
@@ -120,7 +124,6 @@ func (q *QueueProtocol) SendTx(param *types.Transaction) (*types.Reply, error) {
 	if ok {
 		if reply.GetIsOk() {
 			reply.Msg = param.Hash()
-			log.Info("SendTx", "hash", common.ToHex(param.Hash()))
 		} else {
 			msg := string(reply.Msg)
 			err = fmt.Errorf(msg)
@@ -129,6 +132,7 @@ func (q *QueueProtocol) SendTx(param *types.Transaction) (*types.Reply, error) {
 	} else {
 		err = types.ErrTypeAsset
 	}
+	q.client.FreeMessage(msg)
 	return reply, err
 }
 
@@ -489,6 +493,19 @@ func (q *QueueProtocol) LocalNew(param *types.ReqNil) (*types.Int64, error) {
 	msg, err := q.send(blockchainKey, types.EventLocalNew, nil)
 	if err != nil {
 		log.Error("LocalNew", "Error", err.Error())
+		return nil, err
+	}
+	if reply, ok := msg.GetData().(*types.Int64); ok {
+		return reply, nil
+	}
+	return nil, types.ErrTypeAsset
+}
+
+//LocalNew new a localdb object
+func (q *QueueProtocol) LocalNew4CheckTx() (*types.Int64, error) {
+	msg, err := q.send(blockchainKey, types.EventLocalNew4CheckTx, nil)
+	if err != nil {
+		log.Error("LocalNew4CheckTx", "Error", err.Error())
 		return nil, err
 	}
 	if reply, ok := msg.GetData().(*types.Int64); ok {
